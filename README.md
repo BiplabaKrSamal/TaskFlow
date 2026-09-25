@@ -6,7 +6,7 @@ comments, an activity log, and a personal dashboard. Built for the TaskFlow codi
 - **Backend:** FastAPI + SQLAlchemy 2.0 + Alembic + PostgreSQL, native WebSockets
 - **Frontend:** React 18 + TypeScript + Vite + TanStack Query, plain CSS
 - **Stretch goals:** automated tests on critical paths (auth, roles, assignment rules, realtime
-  scoping — 75 backend tests) and Docker Compose for a one-command boot
+  scoping — 78 backend tests) and Docker Compose for a one-command boot
 
 ## Running it
 
@@ -26,6 +26,11 @@ migrates and, if `SEED_ON_START=true` (default), seeds three demo accounts — s
 > all match) and ran the equivalent stack directly (Postgres + backend + an nginx-style proxy +
 > the production frontend build) through a full browser session. Please run it once before
 > submitting.
+
+### Deploying it live
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) — one Render Blueprint (`render.yaml`) deploys the backend,
+frontend, and database together, at no cost to start.
 
 ### Running it directly
 
@@ -51,7 +56,7 @@ cd frontend && npm install && npm run dev
 ```bash
 cd backend && source .venv/bin/activate
 createdb taskflow_test       # owned and truncated by the suite
-pytest -q                    # 75 tests: auth, roles, task rules, filters/paging, realtime, seed
+pytest -q                    # 78 tests: auth, roles, task rules, filters/paging, realtime, seed, config
 ```
 
 ```bash
@@ -217,5 +222,5 @@ the same stale token — is what makes that distinction correctly.
 
 Built with Claude (Anthropic), working autonomously across the schema, backend, WebSocket layer,
 frontend, and this README, from a project plan (stack, data model, and the decisions above) agreed
-before implementation. All 75 backend tests, the frontend unit tests, and a full real-browser
+before implementation. All 78 backend tests, the frontend unit tests, and a full real-browser
 two-window run of the demo script pass against a real PostgreSQL database.

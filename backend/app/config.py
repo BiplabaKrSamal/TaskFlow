@@ -24,5 +24,17 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must be at least 32 characters")
         return value
 
+    @field_validator("database_url")
+    @classmethod
+    def _use_psycopg(cls, value: str) -> str:
+        # Managed Postgres providers (Render, Heroku, ...) hand out a bare
+        # postgres:// or postgresql:// URL. SQLAlchemy needs the driver named
+        # explicitly, and this app is built on psycopg3, not the psycopg2 default.
+        if value.startswith("postgres://"):
+            return "postgresql+psycopg://" + value.removeprefix("postgres://")
+        if value.startswith("postgresql://"):
+            return "postgresql+psycopg://" + value.removeprefix("postgresql://")
+        return value
+
 
 settings = Settings()
