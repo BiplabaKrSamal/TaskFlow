@@ -1,4 +1,5 @@
 import os
+import signal
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -129,3 +130,14 @@ def bob(make_user):
 @pytest.fixture()
 def carol(make_user):
     return make_user("Carol")
+
+
+@pytest.fixture(autouse=True)
+def fail_instead_of_hanging():
+    def give_up(*_):
+        raise TimeoutError("test ran longer than 30s; a websocket read is probably waiting for a message that never came")
+
+    signal.signal(signal.SIGALRM, give_up)
+    signal.alarm(30)
+    yield
+    signal.alarm(0)
