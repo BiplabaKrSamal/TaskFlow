@@ -1,10 +1,10 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from app.access import Access
-from app.models import Activity, ActivityType
+from app.models import Activity, ActivityType, ProjectMember
 from app.realtime import Event
 from app.schemas.activity import ActivityOut, ActivityPage
 from app.schemas.common import ProjectRef, UserRef
@@ -79,3 +79,18 @@ def project_feed(db: Session, project_id: uuid.UUID, limit: int, before: int | N
     more = len(rows) > limit
     rows = rows[:limit]
     return ActivityPage(items=[to_out(a) for a in rows], next_before=rows[-1].id if more else None)
+
+
+def personal_feed(db: Session, user_id: uuid.UUID, limit: int) -> list[ActivityOut]:
+    """What I did, plus what happened to me or to my tasks, across the projects I am still in."""
+    stmt = (
+        select(Activity)
+        .join(
+            ProjectMember,
+            and_(ProjectMember.project_id == Activity.project_id, ProjectMember.user_id == user_id),
+        )
+        .where(or_(Activity.actor_id == user_id, Activity.subject_user_id == user_id))
+        .order_by(Activity.id.desc())
+        .limit(limit)
+    )
+    return [to_out(a, with_project=True) for a in db.scalars(stmt)]

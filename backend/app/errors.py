@@ -47,8 +47,10 @@ def install_error_handlers(app: FastAPI) -> None:
     async def handle_validation(_: Request, err: RequestValidationError):
         fields: dict[str, str] = {}
         for error in err.errors():
-            path = [str(part) for part in error["loc"] if part not in ("body", "query", "path")]
-            fields.setdefault(".".join(path) or "_", _validation_message(error))
+            location = list(error["loc"])
+            if location and location[0] in ("body", "query", "path", "header", "cookie"):
+                location = location[1:]  # drop where the input came from, keep the field name
+            fields.setdefault(".".join(str(part) for part in location) or "_", _validation_message(error))
         detail = next(iter(fields.values()), "The request is not valid")
         return JSONResponse(
             status_code=422, content={"detail": detail, "code": "validation_error", "fields": fields}

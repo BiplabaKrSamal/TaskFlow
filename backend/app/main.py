@@ -3,7 +3,7 @@ from sqlalchemy import text
 
 from app.deps import DbDep
 from app.errors import install_error_handlers
-from app.routers import auth, projects
+from app.routers import auth, me, projects, tasks
 
 
 def create_app() -> FastAPI:
@@ -19,6 +19,8 @@ def create_app() -> FastAPI:
     api = APIRouter(prefix="/api")
     api.include_router(auth.router)
     api.include_router(projects.router)
+    api.include_router(tasks.router)
+    api.include_router(me.router)
 
     @api.get("/health", tags=["meta"])
     def health(db: DbDep):

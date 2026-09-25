@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.access import Access
 from app.db import get_db
 from app.errors import AppError
-from app.models import Project, ProjectMember, User
+from app.models import Project, ProjectMember, Task, User
 from app.security import BEARER, decode_access_token
 
 DbDep = Annotated[Session, Depends(get_db)]
@@ -56,3 +56,14 @@ def owner_access(access: AccessDep) -> Access:
 
 
 OwnerDep = Annotated[Access, Depends(owner_access)]
+
+
+def task_of(task_id: uuid.UUID, access: AccessDep, db: DbDep) -> Task:
+    """Looked up inside the project from the URL, so a task id from another project is a 404."""
+    task = db.scalar(select(Task).where(Task.id == task_id, Task.project_id == access.project.id))
+    if task is None:
+        raise AppError(404, "task_not_found", "Task not found")
+    return task
+
+
+TaskDep = Annotated[Task, Depends(task_of)]
