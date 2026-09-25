@@ -1,12 +1,15 @@
+import uuid
 from typing import Annotated
 
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.access import Access
 from app.db import get_db
 from app.errors import AppError
-from app.models import User
+from app.models import Project, ProjectMember, User
 from app.security import BEARER, decode_access_token
 
 DbDep = Annotated[Session, Depends(get_db)]
@@ -26,3 +29,30 @@ def current_user(
 
 
 UserDep = Annotated[User, Depends(current_user)]
+
+
+def project_access(project_id: uuid.UUID, user: UserDep, db: DbDep) -> Access:
+    """Membership is checked in the database on every request, so removal takes effect at once.
+
+    A project you are not in answers 404, the same as one that does not exist.
+    """
+    row = db.execute(
+        select(Project, ProjectMember.role)
+        .join(ProjectMember, ProjectMember.project_id == Project.id)
+        .where(Project.id == project_id, ProjectMember.user_id == user.id)
+    ).first()
+    if row is None:
+        raise AppError(404, "project_not_found", "Project not found")
+    return Access(user=user, project=row[0], role=row[1])
+
+
+AccessDep = Annotated[Access, Depends(project_access)]
+
+
+def owner_access(access: AccessDep) -> Access:
+    if not access.is_owner:
+        raise AppError(403, "owner_only", "Only the project owner can do this")
+    return access
+
+
+OwnerDep = Annotated[Access, Depends(owner_access)]
