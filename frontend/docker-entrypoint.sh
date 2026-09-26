@@ -6,7 +6,13 @@ set -e
 PORT="${PORT:-80}"
 BACKEND_HOST="${BACKEND_HOST:-backend:8000}"
 
-sed "s|__PORT__|$PORT|g; s|__BACKEND_HOST__|$BACKEND_HOST|g" \
+# Whatever DNS resolver this container itself was given (Docker's embedded one locally,
+# the host's internal resolver when deployed) — nginx needs this told to it explicitly to
+# resolve the backend at request time instead of once at boot. See nginx.conf for why.
+RESOLVER="$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf)"
+RESOLVER="${RESOLVER:-127.0.0.11}"
+
+sed "s|__PORT__|$PORT|g; s|__BACKEND_HOST__|$BACKEND_HOST|g; s|__RESOLVER__|$RESOLVER|g" \
   /etc/nginx/templates/default.conf.tmpl > /etc/nginx/conf.d/default.conf
 
 exec nginx -g 'daemon off;'
