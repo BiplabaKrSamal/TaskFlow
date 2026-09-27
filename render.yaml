@@ -1,10 +1,12 @@
 # Render Blueprint — see DEPLOYMENT.md for setup steps and the reasoning behind this shape.
 #
-# Two web services plus a database. The frontend (nginx) is the only public entry point;
-# it reaches the backend over Render's private network (fromService ... property: hostport),
-# so the browser only ever talks to one origin and the refresh cookie stays same-site with
-# no code changes from local/Docker Compose. The backend is also technically reachable at
-# its own public URL — that's fine, since every route still enforces auth itself.
+# Two web services plus a database. The frontend (nginx) is the only public entry point the
+# browser ever talks to, so the refresh cookie stays same-site with no code changes from
+# local/Docker Compose. It reaches the backend over the backend's own public HTTPS address
+# (BACKEND_HOST below) rather than Render's private networking — a private/internal hostname
+# either isn't exposed or isn't reliably resolvable for a service of type "web" (as opposed to
+# a true private service), so this repo uses the address that's actually proven to work. That's
+# fine security-wise: every backend route still enforces auth itself regardless of network path.
 databases:
   - name: taskflow-db
     databaseName: taskflow
@@ -42,8 +44,10 @@ services:
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
     envVars:
+      # Set manually on the service, to the backend's own .onrender.com hostname (no scheme,
+      # no port, no trailing slash) — see DEPLOYMENT.md. sync: false means the Blueprint
+      # declares this variable exists but never sets or overwrites its value, so a dashboard
+      # edit here survives every future sync/redeploy instead of being reset back to whatever
+      # a wiring directive like fromService would otherwise compute.
       - key: BACKEND_HOST
-        fromService:
-          name: taskflow-backend
-          type: web
-          property: hostport
+        sync: false
