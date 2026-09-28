@@ -29,8 +29,12 @@ migrates and, if `SEED_ON_START=true` (default), seeds three demo accounts — s
 
 ### Deploying it live
 
+**Live demo:** https://taskflow-frontend-ikx3.onrender.com (free tier — the first request after
+idle can take 30–60s while the services wake). Demo logins are listed under *Demo data* below.
+
 See [DEPLOYMENT.md](./DEPLOYMENT.md) — one Render Blueprint (`render.yaml`) deploys the backend,
-frontend, and database together, at no cost to start.
+frontend, and database together, at no cost to start. One variable, `BACKEND_HOST` on the frontend
+service, is set by hand in the Render dashboard; DEPLOYMENT.md explains why.
 
 ### Running it directly
 
@@ -207,6 +211,14 @@ simple test but breaks the moment two tabs refresh at once, since the second one
 to a replayed, stolen token. The grace window — and tests that specifically race two refreshes on
 the same stale token — is what makes that distinction correctly.
 
+The other hard one was the deployment. Login on Render failed with `508 Loop Detected`, and the
+log showed one request accumulating extra IPs in `X-Forwarded-For` on every hop. Two things in the
+nginx proxy were wrong: it forwarded the incoming `Host` header (the frontend's own hostname)
+upstream, and Render routes by Host, so the request went straight back to the frontend and looped;
+and the entrypoint substituted `__BACKEND_HOST__` while `nginx.conf` used `__BACKEND_URL__`, which
+was never filled in. Fix: the entrypoint builds `BACKEND_URL` from `BACKEND_HOST`, and nginx now
+sends `Host: <backend host>`. I diagnosed it from the logs and the config rather than by guessing.
+
 ## Known issues / with more time
 
 - Live updates trigger a refetch (`invalidateQueries`) rather than a pushed patch — simple and
@@ -217,6 +229,9 @@ the same stale token — is what makes that distinction correctly.
   `id`).
 - No rate limiting on login or invites — the first thing I'd add before real users.
 - No attachments on tasks or comments — text only, per the brief.
+- Free-tier hosting: cold starts after 15 idle minutes, and the free Postgres expires after 30 days.
+- The nginx proxy reaches the backend over its public HTTPS address rather than a private network
+  (see DEPLOYMENT.md); a private service would remove that hop.
 
 ## AI usage disclosure
 
@@ -224,3 +239,8 @@ Built with Claude (Anthropic), working autonomously across the schema, backend, 
 frontend, and this README, from a project plan (stack, data model, and the decisions above) agreed
 before implementation. All 78 backend tests, the frontend unit tests, and a full real-browser
 two-window run of the demo script pass against a real PostgreSQL database.
+
+I then deployed it to Render and debugged the resulting proxy loop (above) with Claude's help,
+reading the failing request logs and the nginx and entrypoint files. I checked the fix against the
+live app afterwards: login, the live-update indicator, member removal auto-unassigning that
+member's tasks, and the inline validation errors.
